@@ -82,7 +82,11 @@ PERIOD_US = 1000 # Periodo de muestreo en microsegundos
 BUFFER_SIZE = 10 # Muestras en el buffer
 
 def signal(t):
-  # Pon aquí el código necesario para generar tu señal.
+  # Pon aquí el código necesario para generar tu señal. (no se como funciona, está mal)
+  
+  T = 5
+  w = 2*math.pi/T		# Valor de w = 2pi/T
+  yt = math.cos(w*t)	# Señal sinuoidal
   return 1
 
 # ------------------------------------------------------------------------------
