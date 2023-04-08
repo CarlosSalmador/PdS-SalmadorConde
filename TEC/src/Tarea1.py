@@ -66,7 +66,9 @@ def loop():
               t = waitNextPeriod(tLast)
               u = signal((t-t0)*1e-6)
               y = readInput()
+              buff[i] = y;
               writeOutput(u)
+              
             except ValueError:
               pass
             data.append([(t-t0)*1e-6, u, y])
@@ -80,14 +82,15 @@ def loop():
 # ------------------------------------------------------------------------------
 PERIOD_US = 1000 # Periodo de muestreo en microsegundos
 BUFFER_SIZE = 10 # Muestras en el buffer
+buff = [0]*BUFFER_SIZE	 # Inicializo el buffer a 0
 
 def signal(t):
-  # Pon aquí el código necesario para generar tu señal. (no se como funciona, está mal)
+  # Pon aquí el código necesario para generar tu señal.
   
   T = 5
-  w = 2*math.pi/T		# Valor de w = 2pi/T
-  yt = math.cos(w*t)	# Señal sinuoidal
-  return 1
+  w = 2*math.pi/T			# Valor de w = 2pi/T
+  yt = math.cos(w*t)*65025	# Señal sinuoidal con valores que van de 0 (min) a 65025 (máx)
+  return int(math.fabs(yt))
 
 # ------------------------------------------------------------------------------
 # Comienza la ejecución
