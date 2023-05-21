@@ -4,6 +4,7 @@
 import json
 from machine import Pin, PWM, ADC, SPI, Timer
 import math
+import cmath
 import time
 import sys
 import uselect
@@ -28,6 +29,7 @@ def readInput():
 def writeOutput(value: int):
     '''Write output to DAC '''
     signal_out.duty_u16(value)
+    
 # ------------------------------------------------------------------------------
 # Comunicación serie
 # ------------------------------------------------------------------------------
@@ -38,6 +40,7 @@ def parse_command(cmd):
         # Escribe aquí el código para interpretar las órdenes recibidas
     except Exception as e:
         print('{"result":"unknown or malformed command"}')
+        
 # ------------------------------------------------------------------------------
 # Bucle principal
 # ------------------------------------------------------------------------------
@@ -45,6 +48,7 @@ def parse_command(cmd):
 #   2. Genera la siguiente muestra de la señal y la envía a la salida (PWM).
 #   3. Lee el valor de la entrada analógica (ADC).
 # ------------------------------------------------------------------------------
+
 def waitNextPeriod(previous):
     lapsed = time.ticks_us() - previous
     offset = -60
@@ -52,6 +56,22 @@ def waitNextPeriod(previous):
     if 0 < lapsed <= PERIOD_US:
         time.sleep_us(remaining)
     return time.ticks_us()
+
+def diezmado_en_base_2(buffer):
+    N = len(buffer)   # Sacamos longitud del buffer
+    if N <= 1:
+        return buffer # Comprobación de error (se corta si N <= 1)
+    else:
+        # Dividimos en dos subsecuencias pares e impares:
+        par = diezmado_en_base_2(buffer[0::2])      # Devuelve los elementos pares de buffer
+        impar = diezmado_en_base_2(buffer[1::2])    # Devuelve los elementos impares de buffer
+        
+# Calculamos la exponencial compleja para sacar el ángulo necesario para combinar las subsecuencias
+        Wn = cmath.exp(-2j * math.pi / N)
+        
+# Ahora combinamos las subsecuencias con parte par sumando, y parte impar restando.
+        return [par[k] + Wn**k * impar[k] for k in range(N // 2)] + \
+               [par[k] - Wn**k * impar[k] for k in range(N // 2)]
 
 def loop():
     state = []
@@ -63,33 +83,38 @@ def loop():
         data = []
         for i in range(BUFFER_SIZE):
             try:
-              t = waitNextPeriod(tLast)
-              u = signal((t-t0)*1e-6)
-              y = readInput()
-              buff[i] = y;
-              writeOutput(u)
-              
+                t = waitNextPeriod(tLast)
+                u = signal((t - t0) * 1e-6)
+                y = readInput()
+                buff[i] = y
+                writeOutput(u)
+
             except ValueError:
-              pass
-            data.append([(t-t0)*1e-6, u, y])
+                pass
+            data.append([(t - t0) * 1e-6, u, y])
             tLast = t
+            
+# Transformada de Fourier discreta usando el algoritmo de diezmado temporal en base 2   
+        FFT = diezmado_en_base_2(buff)
+        
         if spoll.poll(0):
             cmd = str(sys.stdin.readline())
             parse_command(cmd)
-        print(f'{u} {y}')
+        print(f'{u} {y} {FFT}')
+        
 # ------------------------------------------------------------------------------
 # INSTRUCCIONES
 # ------------------------------------------------------------------------------
-PERIOD_US = 1000 # Periodo de muestreo en microsegundos
-BUFFER_SIZE = 10 # Muestras en el buffer
-buff = [0]*BUFFER_SIZE	 # Inicializo el buffer a 0
+PERIOD_US = 1000            # Periodo de muestreo en microsegundos
+BUFFER_SIZE = 10            # Muestras en el buffer
+buff = [0]*BUFFER_SIZE      # Inicializo el buffer a 0
 
 def signal(t):
   # Pon aquí el código necesario para generar tu señal.
   
   T = 5
-  w = 2*math.pi/T			# Valor de w = 2pi/T
-  yt = math.cos(w*t)*65025	# Señal sinuoidal con valores que van de 0 (min) a 65025 (máx)
+  w = 2*math.pi/T           # Valor de w = 2pi/T
+  yt = math.cos(w*t)*65025  # Señal sinuoidal con valores que van de 0 (min) a 65025 (máx)
   return int(math.fabs(yt))
 
 # ------------------------------------------------------------------------------
