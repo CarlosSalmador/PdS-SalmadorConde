@@ -41,6 +41,48 @@ def parse_command(cmd):
     except Exception as e:
         print('{"result":"unknown or malformed command"}')
         
+# -------------------------------------------------------------------------------
+# Implementación de algoritmo de la FFT
+# -------------------------------------------------------------------------------
+        
+def diezmado_en_base_2(buffer):
+    N = len(buffer)   # Sacamos longitud del buffer
+    if N <= 1:
+        return buffer # Comprobación de error (se corta si N <= 1)
+    else:
+        # Dividimos en dos subsecuencias pares e impares:
+        par = buffer[0::2]      # Devuelve los elementos pares de buffer
+        impar = buffer[1::2]    # Devuelve los elementos impares de buffer
+        
+        # Definimos Wkn de tal manera que pasándole los parámetros k, n y N, te devuelve el valor de la Wkn correspondiente
+        def Wkn(k,n,N):
+            return cmath.exp(-1j*2*math.pi/N*n*k)
+        
+        # Calculamos el vector de muestras F[k], de tamaño N/2, siendo cada uno de los F[k] el sumatorio con que va desde 0 hasta N/2 -1, y k a su vez va de 0 hasta N/2 -1
+        F = [0 for k in range(int(N/2))] # Defino valores iniciales 0 para F
+        
+        for k in range(N/2):
+            for n in range(N/2):
+                F[k] = par[n]*Wkn(k,n,N/2) + F[k]
+                
+        # Lo mismo para el vector de muestras G[k]
+        G = [0 for k in range(int(N/2))] # Defino valores iniciales 0 para G
+        
+        for k in range(N/2):
+            for n in range(N/2):
+                G[k] = impar[n]*Wkn(k,n,N/2) + G[k]
+        
+        # Ahora combinamos las subsecuencias con parte par sumando, y parte impar restando, para obtener X[k], yendo k desde 0 hasta N
+        X = [0 for k in range(int(N))] # Defino valores iniciales 0 para X
+        
+        for k in range(N):
+            if k < N/2:
+                X[k] = F[k] + Wkn(k,1,N)*G[k]
+            else:
+                X[k] = F[k - int(N/2)] - Wkn(k,1,N)*G[k - int(N/2)]
+        
+        return X
+        
 # ------------------------------------------------------------------------------
 # Bucle principal
 # ------------------------------------------------------------------------------
@@ -57,22 +99,6 @@ def waitNextPeriod(previous):
         time.sleep_us(remaining)
     return time.ticks_us()
 
-def diezmado_en_base_2(buffer):
-    N = len(buffer)   # Sacamos longitud del buffer
-    if N <= 1:
-        return buffer # Comprobación de error (se corta si N <= 1)
-    else:
-        # Dividimos en dos subsecuencias pares e impares:
-        par = diezmado_en_base_2(buffer[0::2])      # Devuelve los elementos pares de buffer
-        impar = diezmado_en_base_2(buffer[1::2])    # Devuelve los elementos impares de buffer
-        
-# Calculamos la exponencial compleja para sacar el ángulo necesario para combinar las subsecuencias
-        Wn = cmath.exp(-2j * math.pi / N)
-        
-# Ahora combinamos las subsecuencias con parte par sumando, y parte impar restando.
-        return [par[k] + Wn**k * impar[k] for k in range(N // 2)] + \
-               [par[k] - Wn**k * impar[k] for k in range(N // 2)]
-
 def loop():
     state = []
     tLast = time.ticks_us()
@@ -87,21 +113,27 @@ def loop():
                 u = signal((t - t0) * 1e-6)
                 y = readInput()
                 buff[i] = y
-                writeOutput(u)
+                writeOutput(u) 
 
             except ValueError:
                 pass
             data.append([(t - t0) * 1e-6, u, y])
             tLast = t
             
-# Transformada de Fourier discreta usando el algoritmo de diezmado temporal en base 2   
+        # Transformada de Fourier discreta usando el algoritmo de diezmado temporal en base 2
         FFT = diezmado_en_base_2(buff)
+                
+        # Calculamos el módulo de la FFT
+        absFFT = [0 for k in range(BUFFER_SIZE)]
+        for j in range(BUFFER_SIZE):
+            absFFT[j] = abs(FFT[j])
+                
+        print(f'Señal: {u} - Entrada: {y}\nEntradas de la FFT: {buff}\nFFT: {absFFT}\n')
         
         if spoll.poll(0):
             cmd = str(sys.stdin.readline())
-            parse_command(cmd)
-        print(f'{u} {y} {FFT}')
-        
+            parse_command(cmd)    
+            
 # ------------------------------------------------------------------------------
 # INSTRUCCIONES
 # ------------------------------------------------------------------------------
@@ -121,4 +153,3 @@ def signal(t):
 # Comienza la ejecución
 # ------------------------------------------------------------------------------
 loop()
-
