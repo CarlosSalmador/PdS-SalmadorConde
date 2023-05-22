@@ -59,14 +59,14 @@ def diezmado_en_base_2(buffer):
             return cmath.exp(-1j*2*math.pi/N*n*k)
         
         # Calculamos el vector de muestras F[k], de tamaño N/2, siendo cada uno de los F[k] el sumatorio con que va desde 0 hasta N/2 -1, y k a su vez va de 0 hasta N/2 -1
-        F = [0 for k in range(int(N/2))] # Defino valores iniciales 0 para F
+        F = [0 for k in range(int(N/2))] # Defino valores iniciales 0 para F (PARES)
         
         for k in range(N/2):
             for n in range(N/2):
                 F[k] = par[n]*Wkn(k,n,N/2) + F[k]
                 
         # Lo mismo para el vector de muestras G[k]
-        G = [0 for k in range(int(N/2))] # Defino valores iniciales 0 para G
+        G = [0 for k in range(int(N/2))] # Defino valores iniciales 0 para G (IMPARES)
         
         for k in range(N/2):
             for n in range(N/2):
@@ -127,8 +127,9 @@ def loop():
         absFFT = [0 for k in range(BUFFER_SIZE)]
         for j in range(BUFFER_SIZE):
             absFFT[j] = abs(FFT[j])
-                
-        print(f'Señal: {u} - Entrada: {y}\nEntradas de la FFT: {buff}\nFFT: {absFFT}\n')
+            
+        # Imprimimos por pantalla la señal de salida y entrada y su FFT en valor absoluto:           
+        print(f'Señal: {u} - Entrada: {y}\n Entradas de la FFT: {buff}\nFFT: {absFFT}\n')
         
         if spoll.poll(0):
             cmd = str(sys.stdin.readline())
